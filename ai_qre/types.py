@@ -2,6 +2,7 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Protocol, TypeAlias
 
+import numpy as np
 import pandas as pd
 
 Ticker: TypeAlias = str
@@ -10,6 +11,10 @@ AlphaModelMap: TypeAlias = dict[str, AlphaVector]
 WeightVector: TypeAlias = dict[Ticker, float]
 TradeVector: TypeAlias = dict[Ticker, float]
 FactorExposureMap: TypeAlias = dict[pd.Timestamp, pd.DataFrame]
+
+
+class CovarianceProvider(Protocol):
+    def compute(self, tickers: Sequence[str]) -> np.ndarray: ...
 
 
 class MarketDataProviderLike(Protocol):
