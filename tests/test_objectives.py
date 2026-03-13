@@ -3,6 +3,8 @@ from collections.abc import Mapping
 import numpy as np
 
 from ai_qre.portfolio.objectives import (
+    CvarInputs,
+    CvarObjective,
     GlobalMinimumVarianceInputs,
     GlobalMinimumVarianceObjective,
     MeanVarianceInputs,
@@ -39,3 +41,24 @@ def test_mean_variance_reduces_to_gmv_when_alphas_zero() -> None:
 
     assert mv_expr is not None
     assert gmv_expr is not None
+
+
+def test_cvar_objective_builds_expression() -> None:
+    tickers = ["A", "B"]
+    alphas = _zeros_like_mapping(tickers)
+    scenario_returns = np.array(
+        [[0.01, -0.02], [-0.03, 0.04], [0.0, -0.01]], dtype=float
+    )
+    inputs = CvarInputs(
+        alphas=alphas,
+        scenario_returns=scenario_returns,
+        current=None,
+        risk_aversion=1.0,
+        turnover_penalty=0.0,
+    )
+
+    import cvxpy as cp
+
+    weights = cp.Variable(len(tickers))
+    expr = CvarObjective(inputs).build(tickers, weights)
+    assert expr is not None
