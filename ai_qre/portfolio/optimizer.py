@@ -1,11 +1,13 @@
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from typing import cast
 
 import cvxpy as cp
 import numpy as np
+import pandas as pd
 
-if TYPE_CHECKING:
-    from ai_qre.config import PortfolioConfig
-    from ai_qre.risk.covariance import ShrinkageCovariance
+from ai_qre.config import PortfolioConfig
+from ai_qre.risk.covariance import ShrinkageCovariance
+from ai_qre.types import WeightVector
 
 
 class PortfolioOptimizer:
@@ -19,41 +21,128 @@ class PortfolioOptimizer:
 
     def solve(
         self,
-        alphas: dict[str, float],
-        current: dict[str, float] | None = None,
-    ) -> dict[str, float]:
+        alphas: Mapping[str, float],
+        current: Mapping[str, float] | None = None,
+        factor_exposures: pd.DataFrame | None = None,
+        max_weight_by_asset: pd.Series | Mapping[str, float] | None = None,
+    ) -> WeightVector:
         tickers = list(alphas.keys())
-        alpha_vec = np.array([alphas[t] for t in tickers])
+        if not tickers:
+            return {}
 
-        cov = self.cov.compute(tickers)
+        alpha_vec = np.asarray(
+            [float(alphas[ticker]) for ticker in tickers], dtype=float
+        )
+        cov_matrix = self.cov.compute(tickers)
+        n_assets = len(tickers)
+        weights_var = cp.Variable(n_assets)
 
-        n = len(tickers)
-        w = cp.Variable(n)
-
-        if current:
-            curr = np.array([current.get(t, 0) for t in tickers])
-        else:
-            curr = np.zeros(n)
-
-        risk = cp.quad_form(w, cov)
-        turnover = cp.norm1(w - curr)
-
-        obj = cp.Maximize(
-            alpha_vec @ w
-            - 0.5 * risk
-            - self.config.turnover_penalty * turnover
+        current_array = (
+            np.asarray(
+                [float(current.get(ticker, 0.0)) for ticker in tickers],
+                dtype=float,
+            )
+            if current is not None
+            else np.zeros(n_assets, dtype=float)
         )
 
-        cons = []
-        cons.append(cp.sum(w) == self.config.net_target)
-        cons.append(cp.norm1(w) <= self.config.gross_limit)
-        cons.append(w <= self.config.max_position)
-        cons.append(w >= -self.config.max_position)
+        risk_term = cp.quad_form(weights_var, cov_matrix)
+        turnover_term = cp.norm1(weights_var - current_array)
+        objective_terms: list[cp.Expression] = [
+            alpha_vec @ weights_var,
+            -float(self.config.risk_aversion) * risk_term,
+            -float(self.config.turnover_penalty) * turnover_term,
+        ]
 
-        prob = cp.Problem(obj, cons)
-        prob.solve()
+        upper_bounds = np.full(
+            n_assets, float(self.config.max_position), dtype=float
+        )
+        if max_weight_by_asset is not None:
+            per_asset_series = (
+                max_weight_by_asset
+                if isinstance(max_weight_by_asset, pd.Series)
+                else pd.Series(dict(max_weight_by_asset), dtype=float)
+            )
+            per_asset = (
+                per_asset_series.reindex(tickers)
+                .fillna(float(self.config.max_position))
+                .to_numpy(dtype=float)
+            )
+            upper_bounds = np.minimum(upper_bounds, per_asset)
 
-        value = w.value
+        constraints: list[cp.Constraint] = [
+            cp.sum(weights_var) == float(self.config.net_target),
+            cp.norm1(weights_var) <= float(self.config.gross_limit),
+            weights_var <= upper_bounds,
+            weights_var >= -upper_bounds,
+        ]
+
+        if factor_exposures is not None and not factor_exposures.empty:
+            aligned_exposures = (
+                factor_exposures.reindex(index=tickers)
+                .fillna(0.0)
+                .astype(float)
+            )
+            exposure_matrix = aligned_exposures.to_numpy(dtype=float)
+            factor_expression = exposure_matrix.T @ weights_var
+            objective_terms.append(
+                cast(
+                    cp.Expression,
+                    -float(self.config.factor_penalty)
+                    * cp.sum_squares(factor_expression),
+                )
+            )
+            hard_columns = self._hard_neutral_columns(aligned_exposures)
+            if hard_columns:
+                hard_matrix = aligned_exposures.loc[:, hard_columns].to_numpy(
+                    dtype=float
+                )
+                hard_expression = hard_matrix.T @ weights_var
+                tol = float(self.config.factor_tolerance)
+                constraints.extend(
+                    [hard_expression <= tol, hard_expression >= -tol]
+                )
+
+        objective = cp.Maximize(cp.sum(objective_terms))
+        solver = getattr(cp, self.config.solver, cp.OSQP)
+        problem = cp.Problem(objective, constraints)
+        problem.solve(solver=solver)
+
+        value = weights_var.value
         if value is None:
-            return {t: 0.0 for t in tickers}
-        return {t: value[i] for i, t in enumerate(tickers)}
+            return {ticker: 0.0 for ticker in tickers}
+
+        raw_weights: WeightVector = {
+            ticker: float(value[index]) for index, ticker in enumerate(tickers)
+        }
+        return self._apply_max_names(raw_weights)
+
+    def _hard_neutral_columns(self, exposures: pd.DataFrame) -> list[str]:
+        hard_columns: list[str] = []
+        if self.config.hard_factor_neutral:
+            wanted = set(self.config.neutral_factors)
+            hard_columns.extend(
+                [column for column in exposures.columns if column in wanted]
+            )
+        if self.config.sector_neutral:
+            hard_columns.extend(
+                [
+                    column
+                    for column in exposures.columns
+                    if column.startswith("sector_")
+                ]
+            )
+        return list(dict.fromkeys(hard_columns))
+
+    def _apply_max_names(self, weights: WeightVector) -> WeightVector:
+        max_names = self.config.max_names
+        if max_names is None or max_names >= len(weights):
+            return weights
+        ranked = sorted(
+            weights.items(), key=lambda item: abs(item[1]), reverse=True
+        )
+        keep = {ticker for ticker, _ in ranked[:max_names]}
+        return {
+            ticker: (value if ticker in keep else 0.0)
+            for ticker, value in weights.items()
+        }

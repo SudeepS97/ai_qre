@@ -1,9 +1,8 @@
-from typing import TYPE_CHECKING
+from collections.abc import Sequence
 
 import numpy as np
 
-if TYPE_CHECKING:
-    from ai_qre.data.provider import MarketDataProvider
+from ai_qre.data.provider import MarketDataProvider
 
 
 class ShrinkageCovariance:
@@ -12,12 +11,19 @@ class ShrinkageCovariance:
         data: MarketDataProvider,
         shrinkage: float = 0.1,
     ) -> None:
+        if not 0.0 <= shrinkage <= 1.0:
+            raise ValueError("shrinkage must be between 0 and 1")
         self.data = data
-        self.shrinkage = shrinkage
+        self.shrinkage = float(shrinkage)
 
-    def compute(self, tickers: list[str]) -> np.ndarray:
-        r = self.data.get_returns(tickers)
-        sample = r.cov().values
+    def compute(self, tickers: Sequence[str]) -> np.ndarray:
+        tickers_list = list(tickers)
+        if not tickers_list:
+            return np.zeros((0, 0), dtype=float)
+        returns = self.data.get_returns(tickers_list).reindex(
+            columns=tickers_list
+        )
+        sample = returns.cov().to_numpy(dtype=float)
         diag = np.diag(np.diag(sample))
         combined = (1.0 - self.shrinkage) * sample + self.shrinkage * diag
-        return np.asarray(combined)
+        return np.asarray(combined, dtype=float)

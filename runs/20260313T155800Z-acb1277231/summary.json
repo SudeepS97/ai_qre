@@ -1,0 +1,44 @@
+{
+  "created_at": "20260313T155800Z",
+  "metrics": {
+    "cost": 0.00024467572550048426,
+    "gross": 0.0843684904236902
+  },
+  "name": "elite-demo",
+  "params": {
+    "portfolio_config": {
+      "aum": 250000000.0,
+      "borrow_cost_penalty": 0.0,
+      "factor_penalty": 0.05,
+      "factor_tolerance": 1e-08,
+      "gross_limit": 3.0,
+      "hard_factor_neutral": true,
+      "max_names": null,
+      "max_position": 0.03,
+      "net_target": 0.0,
+      "neutral_factors": [
+        "market_beta",
+        "size"
+      ],
+      "risk_aversion": 0.05,
+      "sector_neutral": true,
+      "solver": "OSQP",
+      "turnover_penalty": 0.01,
+      "use_capacity_limits": true
+    },
+    "tickers": [
+      "AAPL",
+      "MSFT",
+      "NVDA",
+      "AMZN",
+      "META",
+      "XOM",
+      "JPM",
+      "BA"
+    ]
+  },
+  "run_id": "20260313T155800Z-acb1277231",
+  "tags": {
+    "stage": "research"
+  }
+}
