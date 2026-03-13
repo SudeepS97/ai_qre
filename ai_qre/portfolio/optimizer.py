@@ -3,14 +3,11 @@ import cvxpy as cp
 
 
 class PortfolioOptimizer:
-
     def __init__(self, cov, config):
-
         self.cov = cov
         self.config = config
 
     def solve(self, alphas, current=None):
-
         tickers = list(alphas.keys())
         alpha_vec = np.array([alphas[t] for t in tickers])
 

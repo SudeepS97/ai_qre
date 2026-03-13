@@ -1,5 +1,4 @@
 class ExecutionSimulator:
-
     def __init__(self, spread=0.0005, impact=0.1):
         self.spread = spread
         self.impact = impact

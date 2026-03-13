@@ -1,5 +1,4 @@
 class MarketDataProvider:
-
     def get_prices(self, tickers, start=None, end=None):
         raise NotImplementedError
 

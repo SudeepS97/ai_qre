@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
-from code.research_pipeline import ResearchPipeline
-from code.data.provider import MarketDataProvider
-from code.utils.logging import get_logger
+from ai_qre.research_pipeline import ResearchPipeline
+from ai_qre.data.provider import MarketDataProvider
+from ai_qre.utils.logging import get_logger
 
 _LOGGER = get_logger(__name__)
 
