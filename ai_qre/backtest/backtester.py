@@ -1,12 +1,15 @@
+from collections.abc import Mapping
+
 import pandas as pd
 
 
 class Backtester:
     def run(
         self,
-        weights: dict[str, float],
+        weights: Mapping[str, float],
         returns: pd.DataFrame,
     ) -> pd.Series:
-        pnl: pd.Series = (returns * pd.Series(weights)).sum(axis=1)
-        equity: pd.Series = (1.0 + pnl).cumprod()
-        return equity
+        weight_series = pd.Series(dict(weights), dtype=float)
+        pnl = (returns * weight_series).sum(axis=1)
+        one_plus_pnl: pd.Series = (pnl + 1.0).fillna(0.0)
+        return one_plus_pnl.cumprod()
