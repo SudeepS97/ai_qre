@@ -144,6 +144,50 @@ def main() -> None:
         equity_curve_tail={str(k): float(v) for k, v in equity_tail.items()},
     )
 
+    # --- Optional demos: switch objective and run once ---
+    # GMV (minimize variance only)
+    pipeline.portfolio_config.objective_type = "gmv"
+    w_gmv, _, _ = pipeline.build_portfolio(alpha_models)
+    logger.info(
+        "gmv_weights_sample", gmv_gross=sum(abs(v) for v in w_gmv.values())
+    )
+
+    # Tracking error vs benchmark
+    pipeline.portfolio_config.objective_type = "tracking_error"
+    pipeline.portfolio_config.benchmark_weights = {
+        t: 1.0 / len(tickers) for t in tickers
+    }
+    w_te, _, _ = pipeline.build_portfolio(alpha_models)
+    pipeline.portfolio_config.benchmark_weights = None
+
+    # CVaR (downside risk)
+    pipeline.portfolio_config.objective_type = "cvar"
+    w_cvar, _, _ = pipeline.build_portfolio(alpha_models)
+    pipeline.portfolio_config.objective_type = "mean_variance"
+
+    # MPC first period (multi-period)
+    if hasattr(pipeline, "build_portfolio_mpc"):
+        w_mpc, trades_mpc, cost_mpc = pipeline.build_portfolio_mpc(
+            alpha_models, mpc_horizon=3, mpc_discount=0.99
+        )
+        logger.info("mpc_first_period", cost=cost_mpc)
+
+    # RL env (one reset + step)
+    from ai_qre.backtest.portfolio_env import PortfolioEnv
+
+    ret_df = data.get_returns(tickers).tail(60)
+
+    def env_cost(trades: dict[str, float]) -> float:
+        return 0.001 * sum(abs(x) for x in trades.values())
+
+    env = PortfolioEnv(ret_df, tickers, env_cost)
+    state, info = env.reset()
+    action = {t: 0.0 for t in tickers}
+    action[tickers[0]] = 0.02
+    action[tickers[1]] = -0.02
+    next_s, reward, term, trunc, step_info = env.step(action)
+    logger.info("rl_env_step", reward=reward, pnl=step_info.get("pnl"))
+
 
 if __name__ == "__main__":
     main()
