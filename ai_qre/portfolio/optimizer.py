@@ -7,8 +7,12 @@ import pandas as pd
 from ai_qre.config import PortfolioConfig
 from ai_qre.portfolio.constraints import basic_exposure_constraints
 from ai_qre.portfolio.objectives import (
+    GlobalMinimumVarianceInputs,
+    GlobalMinimumVarianceObjective,
     MeanVarianceInputs,
     MeanVarianceObjective,
+    TrackingErrorInputs,
+    TrackingErrorObjective,
 )
 from ai_qre.risk.covariance import ShrinkageCovariance
 from ai_qre.types import WeightVector
@@ -40,15 +44,36 @@ class PortfolioOptimizer:
 
         objective_terms: list[cp.Expression] = []
 
-        mv_inputs = MeanVarianceInputs(
-            alphas=alphas,
-            cov_matrix=cov_matrix,
-            current=current,
-            risk_aversion=float(self.config.risk_aversion),
-            turnover_penalty=float(self.config.turnover_penalty),
-        )
-        mv_objective = MeanVarianceObjective(mv_inputs)
-        objective_terms.append(mv_objective.build(tickers, weights_var))
+        objective_type = self.config.objective_type
+
+        if objective_type == "gmv":
+            gmv_inputs = GlobalMinimumVarianceInputs(cov_matrix=cov_matrix)
+            gmv_objective = GlobalMinimumVarianceObjective(gmv_inputs)
+            objective_terms.append(gmv_objective.build(tickers, weights_var))
+        elif objective_type == "tracking_error":
+            benchmark_mapping: Mapping[str, float] = (
+                self.config.benchmark_weights or {}
+            )
+            te_inputs = TrackingErrorInputs(
+                alphas=alphas,
+                cov_matrix=cov_matrix,
+                current=current,
+                benchmark=benchmark_mapping,
+                risk_aversion=float(self.config.risk_aversion),
+                turnover_penalty=float(self.config.turnover_penalty),
+            )
+            te_objective = TrackingErrorObjective(te_inputs)
+            objective_terms.append(te_objective.build(tickers, weights_var))
+        else:
+            mv_inputs = MeanVarianceInputs(
+                alphas=alphas,
+                cov_matrix=cov_matrix,
+                current=current,
+                risk_aversion=float(self.config.risk_aversion),
+                turnover_penalty=float(self.config.turnover_penalty),
+            )
+            mv_objective = MeanVarianceObjective(mv_inputs)
+            objective_terms.append(mv_objective.build(tickers, weights_var))
 
         max_weight_arg = None
         if max_weight_by_asset is not None:
