@@ -1,5 +1,4 @@
 class LiquidityModel:
-
     def __init__(self, data, adv_fraction=0.05):
         self.data = data
         self.adv_fraction = adv_fraction

@@ -2,7 +2,6 @@ import numpy as np
 
 
 class ShrinkageCovariance:
-
     def __init__(self, data, shrinkage=0.1):
         self.data = data
         self.shrinkage = shrinkage
