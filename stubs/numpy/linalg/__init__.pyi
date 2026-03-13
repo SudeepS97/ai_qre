@@ -1,0 +1,3 @@
+from typing import Any
+
+def qr(a: Any) -> tuple[Any, Any]: ...

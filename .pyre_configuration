@@ -1,0 +1,16 @@
+{
+  "python_version": "3.14",
+  "source_directories": [
+    "."
+  ],
+  "search_path": [
+    "stubs",
+    ".venv/lib/python3.14/site-packages"
+  ],
+  "ignore_all_errors": [
+    ".venv"
+  ],
+  "site_package_search_strategy": "none",
+  "strict": true,
+  "taint_models_path": []
+}

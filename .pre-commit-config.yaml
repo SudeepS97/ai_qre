@@ -60,6 +60,15 @@ repos:
         additional_dependencies:
           - prettier@2.7.1
 
+  - repo: local
+    hooks:
+      - id: pyre
+        name: pyre static type check
+        entry: pyre check
+        language: system
+        types: [python]
+        pass_filenames: false
+
 # Force all Python hooks to use Python 3.14 by default
 default_language_version:
   python: python3.14

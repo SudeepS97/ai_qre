@@ -1,12 +1,27 @@
-from __future__ import annotations
-
 import logging
 import os
-from typing import Any, Mapping
+from typing import Any, Mapping, Protocol
 
 import structlog
 
 _CONFIGURED = False
+
+
+class _BoundLogger(Protocol):
+    def info(self, *args: object, **kwargs: object) -> None: ...
+    def bind(self, **kwargs: object) -> "_BoundLogger": ...
+
+
+BoundLogger = _BoundLogger
+
+
+class _StructlogProcessor(Protocol):
+    def __call__(
+        self,
+        logger: object,
+        method_name: str,
+        event_dict: dict[str, object],
+    ) -> object: ...
 
 
 def _coerce_level(level: str | int | None) -> int:
@@ -21,7 +36,7 @@ def configure_structlog(
     *,
     level: str | int | None = None,
     json: bool | None = None,
-    extra_processors: list[Any] | None = None,
+    extra_processors: list[_StructlogProcessor] | None = None,
 ) -> None:
     """
     Configure stdlib logging + structlog once for the entire process.
@@ -75,8 +90,8 @@ def configure_structlog(
 
 
 def get_logger(
-    name: str | None = None, /, **bound_context: Any
-) -> structlog.stdlib.BoundLogger:
+    name: str | None = None, /, **bound_context: object
+) -> BoundLogger:
     """
     Returns a configured structlog logger and binds any provided context.
     """
@@ -85,7 +100,7 @@ def get_logger(
     return logger.bind(**bound_context) if bound_context else logger
 
 
-def bind_context(**context: Any) -> None:
+def bind_context(**context: object) -> None:
     """
     Bind contextvars-based context for the current execution context.
     """
@@ -101,7 +116,9 @@ def clear_context() -> None:
     structlog.contextvars.clear_contextvars()
 
 
-def add_standard_context(context: Mapping[str, Any]) -> Mapping[str, Any]:
+def add_standard_context(
+    context: Mapping[str, object],
+) -> Mapping[str, object]:
     """
     Helper for callers that want a consistent set of fields in one place.
     """

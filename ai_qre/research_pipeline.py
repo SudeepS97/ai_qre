@@ -1,12 +1,17 @@
+from typing import TYPE_CHECKING
+
 from ai_qre.alpha.transforms import AlphaBlender, AlphaDecay, shrink
-from ai_qre.risk.covariance import ShrinkageCovariance
-from ai_qre.portfolio.optimizer import PortfolioOptimizer
-from ai_qre.execution.simulator import ExecutionSimulator
 from ai_qre.config import PortfolioConfig
+from ai_qre.execution.simulator import ExecutionSimulator
+from ai_qre.portfolio.optimizer import PortfolioOptimizer
+from ai_qre.risk.covariance import ShrinkageCovariance
+
+if TYPE_CHECKING:
+    from ai_qre.data.provider import MarketDataProvider
 
 
 class ResearchPipeline:
-    def __init__(self, data):
+    def __init__(self, data: MarketDataProvider) -> None:
         self.data = data
 
         self.blender = AlphaBlender()
@@ -18,7 +23,12 @@ class ResearchPipeline:
 
         self.exec_sim = ExecutionSimulator()
 
-    def build_portfolio(self, alpha_models, current=None, alpha_age=0):
+    def build_portfolio(
+        self,
+        alpha_models: dict[str, dict[str, float]],
+        current: dict[str, float] | None = None,
+        alpha_age: int | float = 0,
+    ) -> tuple[dict[str, float], dict[str, float], float]:
         alpha = self.blender.blend(alpha_models)
         alpha = self.decay.apply(alpha, alpha_age)
         alpha = shrink(alpha)

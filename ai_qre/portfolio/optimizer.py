@@ -1,13 +1,27 @@
-import numpy as np
+from typing import TYPE_CHECKING
+
 import cvxpy as cp
+import numpy as np
+
+if TYPE_CHECKING:
+    from ai_qre.config import PortfolioConfig
+    from ai_qre.risk.covariance import ShrinkageCovariance
 
 
 class PortfolioOptimizer:
-    def __init__(self, cov, config):
+    def __init__(
+        self,
+        cov: ShrinkageCovariance,
+        config: PortfolioConfig,
+    ) -> None:
         self.cov = cov
         self.config = config
 
-    def solve(self, alphas, current=None):
+    def solve(
+        self,
+        alphas: dict[str, float],
+        current: dict[str, float] | None = None,
+    ) -> dict[str, float]:
         tickers = list(alphas.keys())
         alpha_vec = np.array([alphas[t] for t in tickers])
 
@@ -39,4 +53,7 @@ class PortfolioOptimizer:
         prob = cp.Problem(obj, cons)
         prob.solve()
 
-        return {t: w.value[i] for i, t in enumerate(tickers)}
+        value = w.value
+        if value is None:
+            return {t: 0.0 for t in tickers}
+        return {t: value[i] for i, t in enumerate(tickers)}
