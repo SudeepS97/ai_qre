@@ -32,6 +32,23 @@ class LiquidityModel:
         addv.name = "addv"
         return addv
 
+    def trading_cost_impact_diag(
+        self,
+        tickers: Sequence[str],
+        aum: float,
+        base_impact: float = 0.1,
+    ) -> dict[str, float]:
+        """Per-asset quadratic trading cost coefficient (higher for lower ADV)."""
+        if aum <= 0.0:
+            raise ValueError("aum must be positive")
+        addv = self.average_daily_dollar_volume(tickers)
+        out: dict[str, float] = {}
+        for t in tickers:
+            adv = float(addv.reindex([t]).fillna(0.0).iloc[0])
+            denom = max(adv, 1.0)
+            out[t] = base_impact * aum / denom
+        return out
+
     def max_weight_limits(
         self, tickers: Sequence[str], aum: float
     ) -> pd.Series:

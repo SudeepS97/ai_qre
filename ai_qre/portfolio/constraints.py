@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 import cvxpy as cp
 import numpy as np
@@ -12,6 +12,7 @@ def basic_exposure_constraints(
     tickers: Sequence[str],
     weights_var: cp.Variable,
     max_weight_by_asset: pd.Series | dict[str, float] | None,
+    current: Mapping[str, float] | None = None,
 ) -> list[cp.Constraint]:
     n_assets = len(tickers)
     upper_bounds = np.full(n_assets, float(config.max_position), dtype=float)
@@ -33,4 +34,13 @@ def basic_exposure_constraints(
         weights_var <= upper_bounds,
         weights_var >= -upper_bounds,
     ]
+    if config.turnover_limit is not None and current is not None:
+        current_array = np.asarray(
+            [float(current.get(t, 0.0)) for t in tickers],
+            dtype=float,
+        )
+        constraints.append(
+            cp.norm1(weights_var - current_array)
+            <= float(config.turnover_limit)
+        )
     return constraints
