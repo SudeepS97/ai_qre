@@ -55,6 +55,9 @@ class WalkForwardConfig:
     step_size: int = 21
     rebalance_every: int = 21
     min_history: int = 252
+    use_mpc: bool = False
+    mpc_horizon: int = 3
+    mpc_discount: float = 0.99
 
 
 @dataclass

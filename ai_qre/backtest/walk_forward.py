@@ -47,9 +47,19 @@ class WalkForwardBacktester:
                 continue
 
             alpha_models = alpha_generator(train_slice)
-            weights, trades, cost = pipeline.build_portfolio(
-                alpha_models, current=current, alpha_age=0
-            )
+            build_mpc = getattr(pipeline, "build_portfolio_mpc", None)
+            if cfg.use_mpc and build_mpc is not None:
+                weights, trades, cost = build_mpc(
+                    alpha_models,
+                    current=current,
+                    alpha_age=0,
+                    mpc_horizon=cfg.mpc_horizon,
+                    mpc_discount=cfg.mpc_discount,
+                )
+            else:
+                weights, trades, cost = pipeline.build_portfolio(
+                    alpha_models, current=current, alpha_age=0
+                )
             rebalance_date = pd.Timestamp(test_slice.index[0])
             weights_records[rebalance_date] = weights
             turnover_records[rebalance_date] = float(
