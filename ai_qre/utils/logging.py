@@ -89,6 +89,28 @@ def configure_structlog(
     _CONFIGURED = True
 
 
+def init_structured_logging(
+    *,
+    level: str | int | None = None,
+    json: bool = False,
+    force: bool = True,
+) -> None:
+    """
+    Initialize structured logging for the process. Call this at the start of
+    main() (or in __main__) to ensure logs render correctly in the terminal.
+
+    - json=False (default): human-readable console output in the terminal.
+    - json=True: JSON lines (e.g. for production or piping).
+    - level: override log level (e.g. "DEBUG", "INFO"); else LOG_LEVEL env or INFO.
+    - force=True (default): reapply config even if logging was already configured
+      (e.g. by an earlier get_logger() at import time), so your choices take effect.
+    """
+    global _CONFIGURED
+    if force:
+        _CONFIGURED = False
+    configure_structlog(level=level, json=json)
+
+
 def get_logger(
     name: str | None = None, /, **bound_context: object
 ) -> BoundLogger:
