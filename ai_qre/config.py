@@ -20,6 +20,10 @@ class PortfolioConfig:
     use_resampled_efficiency: bool = False
     resampled_simulations: int = 50
     resampled_seed: int | None = None
+    use_black_litterman: bool = False
+    bl_tau: float = 0.025
+    bl_omega_scale: float = 1.0
+    bl_views: tuple[tuple[str, tuple[tuple[str, float], ...], float], ...] = ()
     hard_factor_neutral: bool = False
     neutral_factors: tuple[str, ...] = ("market_beta",)
     factor_tolerance: float = 1e-8
