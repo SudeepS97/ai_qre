@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd
 from code.research_pipeline import ResearchPipeline
 from code.data.provider import MarketDataProvider
+from code.utils.logging import get_logger
+
+_LOGGER = get_logger(__name__)
 
 
 class MockData(MarketDataProvider):
@@ -54,6 +57,9 @@ weights, trades, cost = pipeline.build_portfolio(
     alpha_age=1,
 )
 
-print("Weights:", weights)
-print("Trades:", trades)
-print("Estimated cost:", cost)
+_LOGGER.info(
+    "portfolio_built",
+    weights=weights,
+    trades=trades,
+    estimated_cost=cost,
+)
