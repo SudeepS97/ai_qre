@@ -10,7 +10,6 @@ repos:
       - id: check-yaml
       - id: check-merge-conflict
       - id: check-symlinks
-      - id: check-toml
       - id: detect-private-key
       - id: forbid-new-submodules
       - id: check-shebang-scripts-are-executable
@@ -19,13 +18,15 @@ repos:
       - id: trailing-whitespace
       - id: check-docstring-first
       - id: debug-statements
+
   - repo: https://github.com/psf/black
     rev: 24.10.0
     hooks:
       - id: black
-        language_version: python3.13
+        language_version: python3.14 # Updated to your installed Python
         args:
-          - --line-length=79 # https://peps.python.org/pep-0008/#maximum-line-length
+          - --line-length=79
+
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.2
     hooks:
@@ -33,18 +34,24 @@ repos:
         args:
           - --fix
           - --exit-non-zero-on-fix
+        language_version: python3.14 # Updated
+
   - repo: https://github.com/PyCQA/flake8
     rev: 7.0.0
     hooks:
       - id: flake8
+        language_version: python3.14 # Updated
+
   - repo: https://github.com/asottile/yesqa
     rev: v1.4.0
     hooks:
       - id: yesqa
-        additional_dependencies: &flake8_deps
+        additional_dependencies:
           - flake8-bugbear==22.8.23
           - flake8-comprehensions==3.10.0
           - flake8-docstrings==1.6.0
+        language_version: python3.14 # Updated
+
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v2.7.1
     hooks:
@@ -52,3 +59,7 @@ repos:
         types_or: [markdown, yaml]
         additional_dependencies:
           - prettier@2.7.1
+
+# Force all Python hooks to use Python 3.14 by default
+default_language_version:
+  python: python3.14

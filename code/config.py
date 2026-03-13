@@ -1,5 +1,5 @@
-
 from dataclasses import dataclass
+
 
 @dataclass
 class PortfolioConfig:
@@ -8,10 +8,12 @@ class PortfolioConfig:
     net_target: float = 0.0
     turnover_penalty: float = 0.1
 
+
 @dataclass
 class RiskConfig:
     shrinkage: float = 0.1
     factor_window: int = 252
+
 
 @dataclass
 class ExecutionConfig:

@@ -1,6 +1,3 @@
-
-import pandas as pd
-
 class MarketDataProvider:
 
     def get_prices(self, tickers, start=None, end=None):
