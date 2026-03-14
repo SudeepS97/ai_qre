@@ -7,6 +7,8 @@ import pandas as pd
 from ai_qre.config import PortfolioConfig
 from ai_qre.portfolio.constraints import basic_exposure_constraints
 from ai_qre.portfolio.objectives import (
+    CvarInputs,
+    CvarObjective,
     GlobalMinimumVarianceInputs,
     GlobalMinimumVarianceObjective,
     MeanVarianceInputs,
@@ -50,6 +52,20 @@ class PortfolioOptimizer:
             gmv_inputs = GlobalMinimumVarianceInputs(cov_matrix=cov_matrix)
             gmv_objective = GlobalMinimumVarianceObjective(gmv_inputs)
             objective_terms.append(gmv_objective.build(tickers, weights_var))
+        elif objective_type == "cvar":
+            returns_df = self.cov.data.get_returns(tickers)
+            scenario_returns = returns_df.reindex(columns=tickers).to_numpy(
+                dtype=float
+            )
+            cvar_inputs = CvarInputs(
+                alphas=alphas,
+                scenario_returns=scenario_returns,
+                current=current,
+                risk_aversion=float(self.config.risk_aversion),
+                turnover_penalty=float(self.config.turnover_penalty),
+            )
+            cvar_objective = CvarObjective(cvar_inputs)
+            objective_terms.append(cvar_objective.build(tickers, weights_var))
         elif objective_type == "tracking_error":
             benchmark_mapping: Mapping[str, float] = (
                 self.config.benchmark_weights or {}
