@@ -52,6 +52,29 @@ Vectorized backtest that turns a **time series of alpha scores** into rebalanced
 
 ---
 
+### `portfolio_env.py`
+
+**RL-style portfolio environment** for use with external reinforcement learning agents: reset → state, step(action) → next state, reward, done, info.
+
+- **`PortfolioEnv`**
+
+  - **Constructor**: `PortfolioEnv(returns, tickers, cost_fn, state_window=21, reward_fn=default_reward_fn)`.
+    - `returns`: DataFrame (dates × tickers).
+    - `tickers`: list of ticker names.
+    - `cost_fn`: callable `(TradeVector) -> float` (e.g. execution cost).
+    - `state_window`: number of periods of returns in state.
+    - `reward_fn`: callable `(pnl, cost, state, action, info) -> float`; default is PnL minus cost.
+  - **`reset()`**: Returns initial state (positions, returns window, date index, tickers).
+  - **`step(action_weights: WeightVector)`**: Applies action as new weights; returns next_state, reward, done, info. State includes positions and a window of returns.
+
+- **`build_state(positions, returns_window, date_idx, tickers) -> dict`**: Helper to build the standard state dict for RL.
+
+- **`default_reward_fn(pnl, cost, state, action, info) -> float`**: Reward = PnL − cost.
+
+**Exposed in**: `ai_qre.backtest.__init__` (`PortfolioEnv`, `build_state`, `default_reward_fn`).
+
+---
+
 ### `walk_forward.py`
 
 **Walk-forward backtest** that uses the full research pipeline and an alpha generator over rolling train/test windows. Simulates out-of-sample rebalancing with costs.
@@ -64,7 +87,7 @@ Vectorized backtest that turns a **time series of alpha scores** into rebalanced
   - `cost_by_rebalance`: Series (execution cost at each rebalance).
 
 - **`WalkForwardBacktester`**
-  - **Constructor**: `WalkForwardBacktester(config=None)`. Uses `WalkForwardConfig`: train_window, test_window, step_size, rebalance_every, min_history.
+  - **Constructor**: `WalkForwardBacktester(config=None)`. Uses `WalkForwardConfig`: train_window, test_window, step_size, rebalance_every, min_history; optionally use_mpc, mpc_horizon, mpc_discount for callers that use an MPC pipeline.
   - **`run(pipeline, alpha_generator, data_provider, tickers) -> WalkForwardResult`**:
     - Gets prices from `data_provider.get_prices(tickers)`, then returns = pct_change.
     - For each step: train slice = `returns[start - train_window : start]`, test slice = `returns[start : start + test_window]`.
@@ -82,4 +105,4 @@ Vectorized backtest that turns a **time series of alpha scores** into rebalanced
 
 ### `__init__.py`
 
-Exports: `Backtester`, `VectorizedBacktestResult`, `VectorizedResearchHarness`, `WalkForwardBacktester`, `WalkForwardResult`.
+Exports: `Backtester`, `PortfolioEnv`, `build_state`, `default_reward_fn`, `VectorizedBacktestResult`, `VectorizedResearchHarness`, `WalkForwardBacktester`, `WalkForwardResult`.

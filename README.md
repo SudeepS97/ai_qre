@@ -34,10 +34,10 @@ graph LR
     A --> B --> C --> D --> E --> F
 ```
 
-**Types and protocols** (`ai_qre/types.py`) let you plug in custom data and alpha:
+**Types and protocols** let you plug in custom data and alpha:
 
-- **Type aliases**: `AlphaVector` (ticker → score), `AlphaModelMap` (model name → AlphaVector), `WeightVector`, `TradeVector`, `FactorExposureMap` (date → exposure DataFrame).
-- **Protocols**: `MarketDataProviderLike` (get_prices, get_returns, get_volumes, get_sectors, get_market_caps), `ResearchPipelineLike` (build_portfolio), `AlphaGeneratorLike` (train_returns → AlphaModelMap).
+- **Type aliases** (`ai_qre/types.py`): `AlphaVector` (ticker → score), `AlphaModelMap` (model name → AlphaVector), `WeightVector`, `TradeVector`, `FactorExposureMap` (date → exposure DataFrame).
+- **Protocols**: `CovarianceProvider` (`types.py`: `compute(tickers) -> np.ndarray`); the optimizer and resampling use it. `MarketDataProvider` is defined in `ai_qre/data/provider.py`; `MarketDataProviderLike` in `types.py` is the protocol name used in type hints. `ResearchPipelineLike` (build_portfolio), `AlphaGeneratorLike` (train_returns → AlphaModelMap).
 
 Implement `MarketDataProviderLike` for your data source; pass `AlphaModelMap` into `build_portfolio`; use `AlphaGeneratorLike` with the walk-forward backtester.
 
@@ -90,12 +90,15 @@ These limits are passed into the optimizer as per-asset upper bounds. `CapacityC
 
 ### 5. Optimization
 
-**`PortfolioOptimizer`** (`ai_qre/portfolio/optimizer.py`) solves a single-period convex problem (CVXPY, default solver OSQP):
+**`PortfolioOptimizer`** (`ai_qre/portfolio/optimizer.py`) takes a **CovarianceProvider** (e.g. `ShrinkageCovariance`) and solves a single-period convex problem (CVXPY, default solver OSQP):
 
-- **Objective**: alpha · w − risk_aversion × w'Σw − turnover_penalty × |w − w_current| − factor_penalty × ‖exposure'w‖²
-- **Constraints**: net exposure = net_target, gross exposure ≤ gross_limit, per-asset bounds (and optional capacity-based caps), optional hard factor/sector neutrality (exposure'w ≈ 0 for selected factors/sectors).
+- **Objective type** (`objective_type`): `"mean_variance"` (default), `"gmv"`, `"cvar"`, `"tracking_error"`, `"robust_mv"`. Mean–variance form: alpha · w − risk_aversion × w'Σw − turnover_penalty × |w − w_current| − factor_penalty × ‖exposure'w‖².
+- **Resampled efficiency**: When `use_resampled_efficiency` is True, the optimizer uses Michaud-style resampled weights (`ai_qre/portfolio/resampling.py`) instead of a single QP solve.
+- **Black–Litterman**: When `use_black_litterman` and `bl_views` are set, the pipeline applies `posterior_expected_returns` to alpha before the optimizer.
+- **Trading cost in objective**: Optional `use_trading_cost_in_objective`; per-asset quadratic cost from `LiquidityModel.trading_cost_impact_diag` is passed into the optimizer.
+- **Constraints**: net exposure = net_target, gross exposure ≤ gross_limit, per-asset bounds (and optional capacity-based caps), optional hard factor/sector neutrality, optional turnover limit.
 
-All optimizer knobs are on `PortfolioConfig`: `max_position`, `gross_limit`, `net_target`, `turnover_penalty`, `risk_aversion`, `factor_penalty`, `sector_neutral`, `hard_factor_neutral`, `neutral_factors`, `factor_tolerance`, `max_names`, `solver`, etc.
+All optimizer knobs are on `PortfolioConfig`: `max_position`, `gross_limit`, `net_target`, `turnover_penalty`, `risk_aversion`, `factor_penalty`, `sector_neutral`, `hard_factor_neutral`, `neutral_factors`, `factor_tolerance`, `max_names`, `solver`, `objective_type`, `use_resampled_efficiency`, `resampled_simulations`, `resampled_seed`, `use_black_litterman`, `bl_*`, `use_trading_cost_in_objective`, `trading_cost_impact`, `turnover_limit`, etc.
 
 ### 6. Output
 
@@ -105,35 +108,43 @@ The pipeline returns:
 - **Trades** (ticker → weight change from current)
 - **Execution cost** from `ExecutionSimulator` (`ai_qre/execution/simulator.py`): per-trade cost = spread × size + impact × size²; portfolio cost = sum over trades.
 
+**MPC**: `build_portfolio_mpc(...)` uses multi-period optimization (`ai_qre/portfolio/multi_period.py`) and returns the same (weights, trades, cost) shape for the first period.
+
 To go from weights to share counts: use `weights_to_shares(weights, aum, prices)` and `shares_to_long_short(shares)` from `ai_qre/utils/position_sizing.py`.
 
 ---
 
 ## Module reference
 
-| Area             | File(s)                         | Purpose                                                                                                                                                                   |
-| ---------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Root**         | `config.py`                     | Dataclasses for portfolio, risk, execution, walk-forward, stress, distributed, capacity, experiment, vectorized research config.                                          |
-|                  | `types.py`                      | Type aliases (AlphaVector, AlphaModelMap, WeightVector, TradeVector, FactorExposureMap) and protocols (MarketDataProviderLike, ResearchPipelineLike, AlphaGeneratorLike). |
-|                  | `research_pipeline.py`          | Main pipeline: data, alpha blend/decay/shrink, covariance, Barra-like risk, liquidity, optimizer, execution cost.                                                         |
-|                  | `research_extensions.py`        | Facade: Barra risk, cross-sectional alpha model, walk-forward backtester, vectorized harness, stress, distributed runner, experiment tracker.                             |
-| **alpha/**       | `transforms.py`                 | AlphaBlender, AlphaDecay, shrink(), orthogonalize().                                                                                                                      |
-|                  | `cross_sectional_regression.py` | CrossSectionalAlphaModel (OLS/ridge), RegressionResult.                                                                                                                   |
-| **backtest/**    | `backtester.py`                 | Backtester: static weights vs returns → equity curve.                                                                                                                     |
-|                  | `vectorized.py`                 | VectorizedResearchHarness: alpha time series → rebalanced weights → portfolio returns and equity; optional top_n/bottom_n, gross, per-date factor neutralization.         |
-|                  | `walk_forward.py`               | WalkForwardBacktester: rolling train/test, alpha generator, pipeline.build_portfolio, turnover and cost tracking.                                                         |
-| **capacity/**    | `liquidity.py`                  | LiquidityModel: ADDV, max_weight_limits, capacity_report.                                                                                                                 |
-| **data/**        | `provider.py`                   | MarketDataProvider protocol.                                                                                                                                              |
-| **execution/**   | `simulator.py`                  | ExecutionSimulator: per-trade and portfolio cost (spread + impact).                                                                                                       |
-| **portfolio/**   | `optimizer.py`                  | PortfolioOptimizer: single-period QP with constraints.                                                                                                                    |
-| **risk/**        | `covariance.py`                 | ShrinkageCovariance.                                                                                                                                                      |
-|                  | `barra_model.py`                | BarraLikeRiskModel, FactorRiskSnapshot.                                                                                                                                   |
-|                  | `factor_model.py`               | SimpleFactorModel (market beta only).                                                                                                                                     |
-| **tracking/**    | `experiment.py`                 | ExperimentRun (log*params, log_metrics, log_artifact*\*, finalize), ExperimentTracker (start_run).                                                                        |
-| **stress/**      | `monte_carlo.py`                | MonteCarloStress: simulate paths, terminal value, drawdown, VaR/CVaR stats.                                                                                               |
-| **distributed/** | `runner.py`                     | DistributedResearchRunner: multiprocessing pool (run, starmap).                                                                                                           |
-| **utils/**       | `position_sizing.py`            | weights_to_shares, shares_to_long_short.                                                                                                                                  |
-|                  | `logging.py`                    | init_structured_logging, get_logger, structlog configuration.                                                                                                             |
+| Area             | File(s)                         | Purpose                                                                                                                                                                                       |
+| ---------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Root**         | `config.py`                     | Dataclasses for portfolio, risk, execution, walk-forward, stress, distributed, capacity, experiment, vectorized research config.                                                              |
+|                  | `types.py`                      | Type aliases (AlphaVector, AlphaModelMap, WeightVector, TradeVector, FactorExposureMap) and protocols (CovarianceProvider, MarketDataProviderLike, ResearchPipelineLike, AlphaGeneratorLike). |
+|                  | `research_pipeline.py`          | Main pipeline: data, alpha blend/decay/shrink, covariance, Barra-like risk, liquidity, optimizer, execution cost; build_portfolio and build_portfolio_mpc.                                    |
+|                  | `research_extensions.py`        | Facade: Barra risk, cross-sectional alpha model, walk-forward backtester, vectorized harness, stress, distributed runner, experiment tracker.                                                 |
+| **alpha/**       | `transforms.py`                 | AlphaBlender, AlphaDecay, shrink(), orthogonalize().                                                                                                                                          |
+|                  | `cross_sectional_regression.py` | CrossSectionalAlphaModel (OLS/ridge), RegressionResult.                                                                                                                                       |
+| **backtest/**    | `backtester.py`                 | Backtester: static weights vs returns → equity curve.                                                                                                                                         |
+|                  | `portfolio_env.py`              | PortfolioEnv (RL-style reset/step), build_state, default_reward_fn.                                                                                                                           |
+|                  | `vectorized.py`                 | VectorizedResearchHarness: alpha time series → rebalanced weights → portfolio returns and equity; optional top_n/bottom_n, gross, per-date factor neutralization.                             |
+|                  | `walk_forward.py`               | WalkForwardBacktester: rolling train/test, alpha generator, pipeline.build_portfolio, turnover and cost tracking.                                                                             |
+| **capacity/**    | `liquidity.py`                  | LiquidityModel: ADDV, max_weight_limits, capacity_report, trading_cost_impact_diag.                                                                                                           |
+| **data/**        | `provider.py`                   | MarketDataProvider protocol.                                                                                                                                                                  |
+| **execution/**   | `simulator.py`                  | ExecutionSimulator: per-trade and portfolio cost (spread + impact).                                                                                                                           |
+| **portfolio/**   | `optimizer.py`                  | PortfolioOptimizer: single-period QP (CovarianceProvider, multiple objective types, resampled path).                                                                                          |
+|                  | `resampling.py`                 | resampled_efficiency_weights: Michaud-style resampled efficiency.                                                                                                                             |
+|                  | `objectives.py`                 | MeanVariance, GMV, CVaR, TrackingError, RobustMeanVariance objective builders.                                                                                                                |
+|                  | `constraints.py`                | basic_exposure_constraints (net, gross, bounds, turnover limit).                                                                                                                              |
+|                  | `black_litterman.py`            | posterior_expected_returns (BL views → adjusted alpha).                                                                                                                                       |
+|                  | `multi_period.py`               | solve_mpc_first_period (MPC first-period weights).                                                                                                                                            |
+| **risk/**        | `covariance.py`                 | ShrinkageCovariance (CovarianceProvider).                                                                                                                                                     |
+|                  | `barra_model.py`                | BarraLikeRiskModel, FactorRiskSnapshot.                                                                                                                                                       |
+|                  | `factor_model.py`               | SimpleFactorModel (market beta only).                                                                                                                                                         |
+| **tracking/**    | `experiment.py`                 | ExperimentRun (log*params, log_metrics, log_artifact*\*, finalize), ExperimentTracker (start_run).                                                                                            |
+| **stress/**      | `monte_carlo.py`                | MonteCarloStress: simulate paths, terminal value, drawdown, VaR/CVaR stats.                                                                                                                   |
+| **distributed/** | `runner.py`                     | DistributedResearchRunner: multiprocessing pool (run, starmap).                                                                                                                               |
+| **utils/**       | `position_sizing.py`            | weights_to_shares, shares_to_long_short.                                                                                                                                                      |
+|                  | `logging.py`                    | init_structured_logging, get_logger, structlog configuration.                                                                                                                                 |
 
 ---
 
@@ -141,7 +152,7 @@ To go from weights to share counts: use `weights_to_shares(weights, aum, prices)
 
 - **Alpha**: Multiple alpha models combined with `AlphaBlender` (configurable per-model weights). Optional `AlphaDecay` (half-life) and `shrink()` (prior-mean shrinkage). `CrossSectionalAlphaModel` for cross-sectional OLS/ridge (signals → future returns).
 - **Covariance / risk**: Sample covariance with diagonal shrinkage (`ShrinkageCovariance`). Barra-like factor model: market_beta, size, momentum, sector dummies; factor covariance and full asset covariance via `BarraLikeRiskModel.snapshot`. Simple market-beta model in `SimpleFactorModel`.
-- **Portfolio**: Single-period mean–variance style: maximize alpha minus risk, turnover, and factor penalty; constraints on net, gross, per-asset caps, optional hard factor/sector neutrality and capacity-driven limits; optional max names.
+- **Portfolio**: Single-period optimization with multiple objective types (mean–variance, GMV, CVaR, tracking error, robust MV); optional resampled efficiency (Michaud), Black–Litterman alpha adjustment, and trading cost in objective; constraints on net, gross, per-asset caps, optional hard factor/sector neutrality, capacity-driven limits, turnover limit; optional max names. MPC via `build_portfolio_mpc` for multi-period first-period weights.
 - **Backtest**: (1) **Backtester**: static weight vector vs return series → equity curve. (2) **VectorizedResearchHarness**: alpha DataFrame + returns DataFrame → rebalance every N days → weights, portfolio returns, equity, turnover; optional top_n/bottom_n, gross scaling, per-date factor neutralization. (3) **WalkForwardBacktester**: rolling train/test windows, `AlphaGeneratorLike` produces alphas from train returns, `ResearchPipelineLike.build_portfolio` at each rebalance; tracks equity, weights, turnover, cost.
 - **Execution**: Linear spread plus quadratic impact per trade; portfolio cost = sum of per-trade costs.
 - **Stress**: Monte Carlo over multivariate normal returns; outputs terminal PnL distribution, max drawdown, and VaR/CVaR (95%) statistics.
@@ -153,10 +164,10 @@ To go from weights to share counts: use `weights_to_shares(weights, aum, prices)
 
 ### Configurable via config dataclasses (`ai_qre/config.py`)
 
-- **PortfolioConfig**: max_position, gross_limit, net_target, turnover_penalty, risk_aversion, factor_penalty, borrow_cost_penalty, sector_neutral, max_names, solver, hard_factor_neutral, neutral_factors, factor_tolerance, use_capacity_limits, aum.
+- **PortfolioConfig**: max_position, gross_limit, net_target, turnover_penalty, risk_aversion, factor_penalty, borrow_cost_penalty, sector_neutral, max_names, solver, hard_factor_neutral, neutral_factors, factor_tolerance, use_capacity_limits, aum; objective_type, benchmark_weights, uncertainty_radius, uncertainty_type; use_resampled_efficiency, resampled_simulations, resampled_seed; use_black_litterman, bl_tau, bl_omega_scale, bl_views; use_trading_cost_in_objective, trading_cost_impact, turnover_limit.
 - **RiskConfig**: shrinkage, factor_window, momentum_lookback, min_obs.
 - **ExecutionConfig**: spread_cost, impact_coeff (ExecutionSimulator itself takes spread/impact in its constructor, not this dataclass).
-- **WalkForwardConfig**: train_window, test_window, step_size, rebalance_every, min_history.
+- **WalkForwardConfig**: train_window, test_window, step_size, rebalance_every, min_history; use_mpc, mpc_horizon, mpc_discount.
 - **StressTestConfig**: paths, horizon, seed.
 - **DistributedConfig**: workers, chunksize.
 - **CapacityConfig**: adv_fraction, participation_cap, forecast_days_to_liquidate, min_weight_cap.
@@ -174,14 +185,12 @@ To go from weights to share counts: use `weights_to_shares(weights, aum, prices)
 - `DistributedResearchRunner(workers, chunksize)`.
 - `ExperimentTracker(root_dir)`.
 
-### Fixed or not implemented in code
+### Implemented vs not implemented
 
-- Barra-like factor set is fixed: market_beta, size, momentum, sector dummies.
-- Optimizer objective form is fixed (no GMV, max-Sharpe, CVaR, or Black–Litterman in this codebase).
-- Data interface is protocol-only; you implement or adapt your data source.
-- Solver is configurable (e.g. OSQP) but there are no alternative objective families (e.g. risk-parity, tracking error).
+- **Implemented**: GMV, CVaR, tracking error, robust mean–variance, Black–Litterman, resampled efficiency, multi-period (MPC), and transaction-cost-in-objective. Barra-like factor set is fixed: market_beta, size, momentum, sector dummies.
+- **Not implemented (examples)**: risk-parity, max-Sharpe as a single objective, full RL integration in the pipeline. Data interface is protocol-only; you implement or adapt your data source. Solver is configurable (e.g. OSQP).
 
-For a list of concepts not yet implemented (GMV, Sharpe, benchmark-relative, downside risk, robust/Black–Litterman, transaction-cost-in-objective, multi-period/MPC, RL), see **OPTIMIZATION_CAPABILITIES.md**.
+See **OPTIMIZATION_CAPABILITIES.md** for a detailed list of implemented vs not-implemented optimization features.
 
 ---
 

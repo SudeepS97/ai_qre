@@ -9,7 +9,7 @@ This folder contains **risk and covariance** components: how asset covariance is
 ### `covariance.py`
 
 - **`ShrinkageCovariance`**
-  Builds the **covariance matrix** used by the portfolio optimizer (quadratic risk term).
+  Builds the **covariance matrix** used by the portfolio optimizer (quadratic risk term). Implements the **CovarianceProvider** protocol (`compute(tickers) -> np.ndarray`).
   - **Constructor**: `ShrinkageCovariance(data: MarketDataProvider, shrinkage=0.1)`. `shrinkage` must be in [0, 1].
   - **`compute(tickers) -> np.ndarray`**:
     - Fetches historical returns via `data.get_returns(tickers)`.

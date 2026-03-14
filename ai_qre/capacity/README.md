@@ -30,10 +30,15 @@ Single module: **`LiquidityModel`**, which uses average daily volume and config 
   - Returns Series indexed by ticker, name `"max_weight"`. The pipeline passes this as per-asset upper (and symmetric lower) bounds to the optimizer when `use_capacity_limits` is True.
 
 - **`capacity_report(weights, aum: float) -> pd.DataFrame`**
+
   - Takes the current portfolio weights (dict or similar).
   - Computes `max_weight` per ticker via `max_weight_limits`.
   - Builds a DataFrame with columns: `abs_weight` (absolute weight), `max_weight`, and `capacity_usage` = abs_weight / max_weight (NaN when max_weight is 0).
   - Sorted by `capacity_usage` descending so the most capacity-constrained names appear first.
   - Useful for compliance and risk reporting.
 
-**Used by**: `ResearchPipeline` when `portfolio_config.use_capacity_limits` is True; it calls `liquidity.max_weight_limits(tickers, aum)` and passes the result into `PortfolioOptimizer.solve(..., max_weight_by_asset=...)`.
+- **`trading_cost_impact_diag(tickers, aum: float, base_impact=0.1) -> dict[str, float]`**
+  - Returns per-ticker quadratic trading cost coefficient (inverse-ADV style: higher for less liquid names).
+  - Used when `portfolio_config.use_trading_cost_in_objective` is True: the pipeline passes the result into `PortfolioOptimizer.solve(..., trading_cost_lambda_diag=...)` so the optimizer can penalize turnover by asset liquidity.
+
+**Used by**: `ResearchPipeline` when `portfolio_config.use_capacity_limits` is True (max_weight_limits → optimizer) and when `use_trading_cost_in_objective` is True (trading_cost_impact_diag → optimizer).
