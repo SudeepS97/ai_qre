@@ -13,17 +13,19 @@ from ai_qre.portfolio.objectives import (
     GlobalMinimumVarianceObjective,
     MeanVarianceInputs,
     MeanVarianceObjective,
+    RobustMeanVarianceInputs,
+    RobustMeanVarianceObjective,
     TrackingErrorInputs,
     TrackingErrorObjective,
 )
-from ai_qre.risk.covariance import ShrinkageCovariance
-from ai_qre.types import WeightVector
+from ai_qre.portfolio.resampling import resampled_efficiency_weights
+from ai_qre.types import CovarianceProvider, WeightVector
 
 
 class PortfolioOptimizer:
     def __init__(
         self,
-        cov: ShrinkageCovariance,
+        cov: CovarianceProvider,
         config: PortfolioConfig,
     ) -> None:
         self.cov = cov
@@ -40,6 +42,15 @@ class PortfolioOptimizer:
         if not tickers:
             return {}
 
+        if self.config.use_resampled_efficiency:
+            return resampled_efficiency_weights(
+                self.cov,
+                self.config,
+                tickers,
+                alphas,
+                current=current,
+            )
+
         cov_matrix = self.cov.compute(tickers)
         n_assets = len(tickers)
         weights_var = cp.Variable(n_assets)
@@ -53,7 +64,12 @@ class PortfolioOptimizer:
             gmv_objective = GlobalMinimumVarianceObjective(gmv_inputs)
             objective_terms.append(gmv_objective.build(tickers, weights_var))
         elif objective_type == "cvar":
-            returns_df = self.cov.data.get_returns(tickers)
+            data = getattr(self.cov, "data", None)
+            if data is None:
+                raise ValueError(
+                    "cvar objective requires a covariance provider with .data"
+                )
+            returns_df = data.get_returns(tickers)
             scenario_returns = returns_df.reindex(columns=tickers).to_numpy(
                 dtype=float
             )
@@ -80,6 +96,23 @@ class PortfolioOptimizer:
             )
             te_objective = TrackingErrorObjective(te_inputs)
             objective_terms.append(te_objective.build(tickers, weights_var))
+        elif objective_type == "robust_mv":
+            base_mv = MeanVarianceInputs(
+                alphas=alphas,
+                cov_matrix=cov_matrix,
+                current=current,
+                risk_aversion=float(self.config.risk_aversion),
+                turnover_penalty=float(self.config.turnover_penalty),
+            )
+            robust_inputs = RobustMeanVarianceInputs(
+                base=base_mv,
+                uncertainty_radius=float(self.config.uncertainty_radius),
+                uncertainty_type=self.config.uncertainty_type,
+            )
+            robust_objective = RobustMeanVarianceObjective(robust_inputs)
+            objective_terms.append(
+                robust_objective.build(tickers, weights_var)
+            )
         else:
             mv_inputs = MeanVarianceInputs(
                 alphas=alphas,

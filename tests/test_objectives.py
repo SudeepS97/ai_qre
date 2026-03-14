@@ -9,6 +9,8 @@ from ai_qre.portfolio.objectives import (
     GlobalMinimumVarianceObjective,
     MeanVarianceInputs,
     MeanVarianceObjective,
+    RobustMeanVarianceInputs,
+    RobustMeanVarianceObjective,
 )
 
 
@@ -61,4 +63,28 @@ def test_cvar_objective_builds_expression() -> None:
 
     weights = cp.Variable(len(tickers))
     expr = CvarObjective(inputs).build(tickers, weights)
+    assert expr is not None
+
+
+def test_robust_mv_objective_builds_expression() -> None:
+    tickers = ["A", "B"]
+    cov = np.array([[0.04, 0.01], [0.01, 0.09]], dtype=float)
+    alphas = _zeros_like_mapping(tickers)
+    base = MeanVarianceInputs(
+        alphas=alphas,
+        cov_matrix=cov,
+        current=None,
+        risk_aversion=1.0,
+        turnover_penalty=0.0,
+    )
+    robust_inputs = RobustMeanVarianceInputs(
+        base=base,
+        uncertainty_radius=0.01,
+        uncertainty_type="box",
+    )
+
+    import cvxpy as cp
+
+    weights = cp.Variable(len(tickers))
+    expr = RobustMeanVarianceObjective(robust_inputs).build(tickers, weights)
     assert expr is not None

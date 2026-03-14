@@ -15,6 +15,11 @@ class PortfolioConfig:
     solver: str = "OSQP"
     objective_type: str = "mean_variance"
     benchmark_weights: dict[str, float] | None = None
+    uncertainty_radius: float = 0.0
+    uncertainty_type: str = "box"
+    use_resampled_efficiency: bool = False
+    resampled_simulations: int = 50
+    resampled_seed: int | None = None
     hard_factor_neutral: bool = False
     neutral_factors: tuple[str, ...] = ("market_beta",)
     factor_tolerance: float = 1e-8
