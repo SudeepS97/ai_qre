@@ -1,9 +1,6 @@
 """Simple single-factor (market) risk model."""
 
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from ai_qre.data.provider import MarketDataProvider
+from ai_qre.data.provider import MarketDataProvider
 
 
 class SimpleFactorModel:

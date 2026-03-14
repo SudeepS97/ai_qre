@@ -1,11 +1,30 @@
 """Resampled efficiency (Michaud) portfolio weights by averaging over simulated inputs."""
 
-from collections.abc import Mapping, Sequence
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping, Sequence
+from typing import Protocol
 
 import numpy as np
 
 from ai_qre.config import PortfolioConfig
 from ai_qre.types import CovarianceProvider, WeightVector
+
+
+class _OptimizerInstanceLike(Protocol):
+    """Protocol for optimizer instance: has solve(alphas, current=...)."""
+
+    def solve(
+        self,
+        alphas: Mapping[str, float],
+        current: Mapping[str, float] | None = None,
+    ) -> WeightVector: ...
+
+
+# Factory: (cov, config) -> optimizer instance. Use Callable to avoid Pyre "cannot instantiate protocol".
+_OptimizerFactory = Callable[
+    [CovarianceProvider, PortfolioConfig], _OptimizerInstanceLike
+]
 
 
 class _FixedCovariance:
@@ -25,13 +44,12 @@ def resampled_efficiency_weights(
     config: PortfolioConfig,
     tickers: list[str],
     alphas: Mapping[str, float],
+    optimizer_factory: _OptimizerFactory,
     current: Mapping[str, float] | None = None,
     n_simulations: int | None = None,
     seed: int | None = None,
 ) -> WeightVector:
-    """Average portfolio weights over bootstrap resamples of (mu, Sigma)."""
-    from ai_qre.portfolio.optimizer import PortfolioOptimizer
-
+    """Average portfolio weights over bootstrap resamples of (mu, Sigma). Caller passes optimizer_factory (e.g. PortfolioOptimizer class) to avoid circular import."""
     data = getattr(cov, "data", None)
     if data is None:
         raise ValueError(
@@ -48,7 +66,7 @@ def resampled_efficiency_weights(
     returns_df = data.get_returns(tickers)
     returns_df = returns_df.reindex(columns=tickers).dropna(how="all")
     if returns_df.empty or len(returns_df) < 2:
-        opt = PortfolioOptimizer(cov, config)
+        opt = optimizer_factory(cov, config)
         return opt.solve(alphas, current=current)
     returns = returns_df.to_numpy(dtype=float)
     T, n = returns.shape
@@ -83,7 +101,7 @@ def resampled_efficiency_weights(
             Sigma_m += 1e-8 * np.eye(n)
         alphas_m = dict(zip(tickers, mu_m.tolist()))
         fixed_cov = _FixedCovariance(Sigma_m)
-        opt = PortfolioOptimizer(fixed_cov, base_config)
+        opt = optimizer_factory(fixed_cov, base_config)
         w = opt.solve(alphas_m, current=current)
         weight_list.append(w)
     out: WeightVector = {}

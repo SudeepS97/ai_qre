@@ -1,5 +1,6 @@
 from collections.abc import Mapping
 
+import cvxpy as cp
 import numpy as np
 
 from ai_qre.portfolio.objectives import (
@@ -32,8 +33,6 @@ def test_mean_variance_reduces_to_gmv_when_alphas_zero() -> None:
     )
     gmv_inputs = GlobalMinimumVarianceInputs(cov_matrix=cov)
 
-    import cvxpy as cp
-
     weights = cp.Variable(len(tickers))
 
     mv_expr = MeanVarianceObjective(mv_inputs).build(tickers, weights)
@@ -59,8 +58,6 @@ def test_cvar_objective_builds_expression() -> None:
         turnover_penalty=0.0,
     )
 
-    import cvxpy as cp
-
     weights = cp.Variable(len(tickers))
     expr = CvarObjective(inputs).build(tickers, weights)
     assert expr is not None
@@ -82,8 +79,6 @@ def test_robust_mv_objective_builds_expression() -> None:
         uncertainty_radius=0.01,
         uncertainty_type="box",
     )
-
-    import cvxpy as cp
 
     weights = cp.Variable(len(tickers))
     expr = RobustMeanVarianceObjective(robust_inputs).build(tickers, weights)

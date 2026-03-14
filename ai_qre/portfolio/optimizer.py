@@ -55,6 +55,7 @@ class PortfolioOptimizer:
                 self.config,
                 tickers,
                 alphas,
+                PortfolioOptimizer,  # class used as (cov, config) -> instance
                 current=current,
             )
 

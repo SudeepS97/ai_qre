@@ -5,10 +5,11 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from ai_qre.research_extensions import ResearchExtensions
-from ai_qre.research_pipeline import ResearchPipeline
+from ai_qre.backtest.portfolio_env import PortfolioEnv
 from ai_qre.backtest.vectorized import VectorizedBacktestResult
 from ai_qre.data.provider import MarketDataProvider
+from ai_qre.research_extensions import ResearchExtensions
+from ai_qre.research_pipeline import ResearchPipeline
 from ai_qre.tracking.experiment import ExperimentRun
 from ai_qre.utils.logging import (
     BoundLogger,
@@ -174,8 +175,6 @@ def main() -> None:
         logger.info("mpc_first_period", cost=cost_mpc)
 
     # RL env (one reset + step)
-    from ai_qre.backtest.portfolio_env import PortfolioEnv
-
     ret_df = data.get_returns(tickers).tail(60)
 
     def env_cost(trades: dict[str, float]) -> float:
