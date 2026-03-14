@@ -3,6 +3,7 @@ from ai_qre.capacity.liquidity import LiquidityModel
 from ai_qre.config import CapacityConfig, PortfolioConfig, RiskConfig
 from ai_qre.data.provider import MarketDataProvider
 from ai_qre.execution.simulator import ExecutionSimulator
+from ai_qre.portfolio.black_litterman import posterior_expected_returns
 from ai_qre.portfolio.optimizer import PortfolioOptimizer
 from ai_qre.risk.barra_model import BarraLikeRiskModel
 from ai_qre.risk.covariance import ShrinkageCovariance
@@ -35,8 +36,23 @@ class ResearchPipeline:
         alpha = self.decay.apply(alpha, alpha_age)
         alpha = shrink(alpha)
 
-        optimizer = PortfolioOptimizer(self.cov, self.portfolio_config)
         tickers = list(alpha.keys())
+        if (
+            self.portfolio_config.use_black_litterman
+            and self.portfolio_config.bl_views
+            and tickers
+        ):
+            cov_matrix = self.cov.compute(tickers)
+            alpha = posterior_expected_returns(
+                tickers,
+                alpha,
+                cov_matrix,
+                self.portfolio_config.bl_views,
+                tau=float(self.portfolio_config.bl_tau),
+                omega_scale=float(self.portfolio_config.bl_omega_scale),
+            )
+
+        optimizer = PortfolioOptimizer(self.cov, self.portfolio_config)
         factor_exposures = (
             self.factor_risk.compute_factor_exposures(tickers)
             if use_factor_penalty and tickers
