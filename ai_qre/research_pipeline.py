@@ -65,11 +65,24 @@ class ResearchPipeline:
                 tickers, aum=float(self.portfolio_config.aum)
             )
 
+        trading_cost_lambda_diag = None
+        if (
+            self.portfolio_config.use_trading_cost_in_objective
+            and tickers
+            and current is not None
+        ):
+            trading_cost_lambda_diag = self.liquidity.trading_cost_impact_diag(
+                tickers,
+                float(self.portfolio_config.aum),
+                base_impact=float(self.portfolio_config.trading_cost_impact),
+            )
+
         weights = optimizer.solve(
             alpha,
             current=current,
             factor_exposures=factor_exposures,
             max_weight_by_asset=max_weight_by_asset,
+            trading_cost_lambda_diag=trading_cost_lambda_diag,
         )
         current_weights = current or {}
         trades = {

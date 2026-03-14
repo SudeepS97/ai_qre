@@ -29,6 +29,9 @@ class PortfolioConfig:
     factor_tolerance: float = 1e-8
     use_capacity_limits: bool = False
     aum: float = 100_000_000.0
+    use_trading_cost_in_objective: bool = False
+    trading_cost_impact: float = 0.1
+    turnover_limit: float | None = None
 
 
 @dataclass

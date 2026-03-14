@@ -2,6 +2,7 @@ from collections.abc import Mapping
 from typing import cast
 
 import cvxpy as cp
+import numpy as np
 import pandas as pd
 
 from ai_qre.config import PortfolioConfig
@@ -37,6 +38,7 @@ class PortfolioOptimizer:
         current: Mapping[str, float] | None = None,
         factor_exposures: pd.DataFrame | None = None,
         max_weight_by_asset: pd.Series | Mapping[str, float] | None = None,
+        trading_cost_lambda_diag: Mapping[str, float] | None = None,
     ) -> WeightVector:
         tickers = list(alphas.keys())
         if not tickers:
@@ -124,6 +126,27 @@ class PortfolioOptimizer:
             mv_objective = MeanVarianceObjective(mv_inputs)
             objective_terms.append(mv_objective.build(tickers, weights_var))
 
+        if self.config.use_trading_cost_in_objective and current is not None:
+            current_array = np.asarray(
+                [float(current.get(t, 0.0)) for t in tickers],
+                dtype=float,
+            )
+            trades_var = weights_var - current_array
+            if trading_cost_lambda_diag:
+                lam = np.asarray(
+                    [
+                        float(trading_cost_lambda_diag.get(t, 1.0))
+                        for t in tickers
+                    ],
+                    dtype=float,
+                )
+                impact_term = cp.sum(cp.multiply(lam, cp.square(trades_var)))
+            else:
+                impact_term = cp.sum_squares(trades_var) * float(
+                    self.config.trading_cost_impact
+                )
+            objective_terms.append(-impact_term)
+
         max_weight_arg = None
         if max_weight_by_asset is not None:
             if isinstance(max_weight_by_asset, pd.Series):
@@ -132,7 +155,7 @@ class PortfolioOptimizer:
                 max_weight_arg = dict(max_weight_by_asset)
 
         constraints: list[cp.Constraint] = basic_exposure_constraints(
-            self.config, tickers, weights_var, max_weight_arg
+            self.config, tickers, weights_var, max_weight_arg, current=current
         )
 
         if factor_exposures is not None and not factor_exposures.empty:
