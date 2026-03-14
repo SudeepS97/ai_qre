@@ -13,6 +13,8 @@ class PortfolioConfig:
     sector_neutral: bool = False
     max_names: int | None = None
     solver: str = "OSQP"
+    objective_type: str = "mean_variance"
+    benchmark_weights: dict[str, float] | None = None
     hard_factor_neutral: bool = False
     neutral_factors: tuple[str, ...] = ("market_beta",)
     factor_tolerance: float = 1e-8
