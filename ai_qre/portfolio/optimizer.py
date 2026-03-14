@@ -2,10 +2,14 @@ from collections.abc import Mapping
 from typing import cast
 
 import cvxpy as cp
-import numpy as np
 import pandas as pd
 
 from ai_qre.config import PortfolioConfig
+from ai_qre.portfolio.constraints import basic_exposure_constraints
+from ai_qre.portfolio.objectives import (
+    MeanVarianceInputs,
+    MeanVarianceObjective,
+)
 from ai_qre.risk.covariance import ShrinkageCovariance
 from ai_qre.types import WeightVector
 
@@ -30,52 +34,32 @@ class PortfolioOptimizer:
         if not tickers:
             return {}
 
-        alpha_vec = np.asarray(
-            [float(alphas[ticker]) for ticker in tickers], dtype=float
-        )
         cov_matrix = self.cov.compute(tickers)
         n_assets = len(tickers)
         weights_var = cp.Variable(n_assets)
 
-        current_array = (
-            np.asarray(
-                [float(current.get(ticker, 0.0)) for ticker in tickers],
-                dtype=float,
-            )
-            if current is not None
-            else np.zeros(n_assets, dtype=float)
-        )
+        objective_terms: list[cp.Expression] = []
 
-        risk_term = cp.quad_form(weights_var, cov_matrix)
-        turnover_term = cp.norm1(weights_var - current_array)
-        objective_terms: list[cp.Expression] = [
-            alpha_vec @ weights_var,
-            -float(self.config.risk_aversion) * risk_term,
-            -float(self.config.turnover_penalty) * turnover_term,
-        ]
-
-        upper_bounds = np.full(
-            n_assets, float(self.config.max_position), dtype=float
+        mv_inputs = MeanVarianceInputs(
+            alphas=alphas,
+            cov_matrix=cov_matrix,
+            current=current,
+            risk_aversion=float(self.config.risk_aversion),
+            turnover_penalty=float(self.config.turnover_penalty),
         )
+        mv_objective = MeanVarianceObjective(mv_inputs)
+        objective_terms.append(mv_objective.build(tickers, weights_var))
+
+        max_weight_arg = None
         if max_weight_by_asset is not None:
-            per_asset_series = (
-                max_weight_by_asset
-                if isinstance(max_weight_by_asset, pd.Series)
-                else pd.Series(dict(max_weight_by_asset), dtype=float)
-            )
-            per_asset = (
-                per_asset_series.reindex(tickers)
-                .fillna(float(self.config.max_position))
-                .to_numpy(dtype=float)
-            )
-            upper_bounds = np.minimum(upper_bounds, per_asset)
+            if isinstance(max_weight_by_asset, pd.Series):
+                max_weight_arg = max_weight_by_asset
+            else:
+                max_weight_arg = dict(max_weight_by_asset)
 
-        constraints: list[cp.Constraint] = [
-            cp.sum(weights_var) == float(self.config.net_target),
-            cp.norm1(weights_var) <= float(self.config.gross_limit),
-            weights_var <= upper_bounds,
-            weights_var >= -upper_bounds,
-        ]
+        constraints: list[cp.Constraint] = basic_exposure_constraints(
+            self.config, tickers, weights_var, max_weight_arg
+        )
 
         if factor_exposures is not None and not factor_exposures.empty:
             aligned_exposures = (
