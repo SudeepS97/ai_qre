@@ -1,3 +1,5 @@
+"""Multiprocessing pool wrapper for parallel research tasks (run and starmap)."""
+
 import multiprocessing as mp
 from collections.abc import Callable, Sequence
 from typing import Any, TypeVar
@@ -7,6 +9,8 @@ TResult = TypeVar("TResult")
 
 
 class DistributedResearchRunner:
+    """Thin wrapper around multiprocessing.Pool for map and starmap over task lists."""
+
     def __init__(self, workers: int | None = None, chunksize: int = 1) -> None:
         self.workers = int(workers or mp.cpu_count())
         self.chunksize = int(chunksize)
@@ -14,6 +18,7 @@ class DistributedResearchRunner:
     def run(
         self, func: Callable[[TTask], TResult], tasks: Sequence[TTask]
     ) -> list[TResult]:
+        """Apply func to each task; return list of results in order."""
         if not tasks:
             return []
         with mp.Pool(self.workers) as pool:
@@ -22,6 +27,7 @@ class DistributedResearchRunner:
     def starmap(
         self, func: Callable[..., TResult], tasks: Sequence[tuple[Any, ...]]
     ) -> list[TResult]:
+        """Apply func(*task) to each tuple in tasks; return list of results in order."""
         if not tasks:
             return []
         with mp.Pool(self.workers) as pool:

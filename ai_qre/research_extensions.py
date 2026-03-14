@@ -12,7 +12,7 @@ from ai_qre.tracking.experiment import ExperimentRun, ExperimentTracker
 
 
 class ResearchExtensions:
-    """Typed facade over the advanced research utilities."""
+    """Facade over backtest (vectorized, walk_forward), stress, experiments, distributed runner, Barra risk, cross-sectional alpha."""
 
     def __init__(self, data_provider: MarketDataProvider) -> None:
         self.barra_risk = BarraLikeRiskModel(data_provider)

@@ -1,3 +1,5 @@
+"""CVXPY constraints for net/gross exposure, bounds, optional turnover limit."""
+
 from collections.abc import Mapping, Sequence
 
 import cvxpy as cp
@@ -14,6 +16,7 @@ def basic_exposure_constraints(
     max_weight_by_asset: pd.Series | dict[str, float] | None,
     current: Mapping[str, float] | None = None,
 ) -> list[cp.Constraint]:
+    """Net target, gross limit, per-asset bounds, and optional turnover limit."""
     n_assets = len(tickers)
     upper_bounds = np.full(n_assets, float(config.max_position), dtype=float)
     if max_weight_by_asset is not None:

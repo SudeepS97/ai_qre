@@ -1,3 +1,5 @@
+"""Cross-sectional OLS/ridge regression for signal-to-return prediction."""
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -6,6 +8,8 @@ import pandas as pd
 
 @dataclass
 class RegressionResult:
+    """Result of a single fit: coefficients, intercept, r2, fitted values, residuals."""
+
     coefficients: pd.Series
     intercept: float
     r2: float
@@ -29,6 +33,7 @@ class CrossSectionalAlphaModel:
         future_returns: pd.Series,
         sample_weight: pd.Series | None = None,
     ) -> RegressionResult:
+        """Fit OLS/ridge of future_returns on signal_df; optional sample weights. Drops rows with NaN."""
         x = signal_df.astype(float).copy()
         y = future_returns.reindex(x.index).astype(float)
         mask = x.notna().all(axis=1) & y.notna()
@@ -77,6 +82,7 @@ class CrossSectionalAlphaModel:
         return result
 
     def predict(self, signal_df: pd.DataFrame) -> pd.Series:
+        """Predict (fitted return) for each row using stored coefficients and intercept."""
         coefs = self.coefficients_
         if coefs is None:
             raise ValueError("Model must be fit before calling predict().")

@@ -1,3 +1,5 @@
+"""Market data interface for the pipeline."""
+
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Protocol
@@ -6,6 +8,8 @@ import pandas as pd
 
 
 class MarketDataProvider(Protocol):
+    """Protocol for market data: get_prices, get_returns, get_volumes, get_sectors, get_market_caps."""
+
     def get_prices(
         self,
         tickers: Sequence[str],

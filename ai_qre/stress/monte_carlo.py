@@ -1,3 +1,5 @@
+"""Monte Carlo stress: multivariate normal paths, terminal PnL, drawdown, VaR/CVaR."""
+
 from collections.abc import Mapping
 
 import numpy as np
@@ -5,6 +7,8 @@ import pandas as pd
 
 
 class MonteCarloStress:
+    """Simulates paths from historical mean/cov; returns stats on terminal value, max drawdown, 95% VaR/CVaR."""
+
     def __init__(self, seed: int | None = 7) -> None:
         self.seed = seed
 
@@ -15,6 +19,7 @@ class MonteCarloStress:
         paths: int = 1000,
         horizon: int = 50,
     ) -> dict[str, float]:
+        """Run paths; return mean/median/p05/p95/worst/best terminal, mean/worst drawdown, mean VaR/CVaR 95%."""
         tickers = list(returns.columns)
         weight_vector = np.asarray(
             [float(weights.get(ticker, 0.0)) for ticker in tickers],

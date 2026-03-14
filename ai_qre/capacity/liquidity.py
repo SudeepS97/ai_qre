@@ -1,3 +1,5 @@
+"""Liquidity and capacity: ADDV, max weight limits, capacity report, trading cost impact."""
+
 from collections.abc import Mapping, Sequence
 
 import pandas as pd
@@ -7,6 +9,8 @@ from ai_qre.data.provider import MarketDataProvider
 
 
 class LiquidityModel:
+    """Computes ADDV, per-asset max weight limits from participation/days-to-liquidate, and capacity reports."""
+
     data: MarketDataProvider
     config: CapacityConfig
 
@@ -19,6 +23,7 @@ class LiquidityModel:
         self.config = config or CapacityConfig()
 
     def average_daily_dollar_volume(self, tickers: Sequence[str]) -> pd.Series:
+        """Return average daily dollar volume (ADDV) per ticker."""
         tickers_list = list(tickers)
         volumes = self.data.get_volumes(tickers_list).reindex(
             columns=tickers_list
@@ -52,6 +57,7 @@ class LiquidityModel:
     def max_weight_limits(
         self, tickers: Sequence[str], aum: float
     ) -> pd.Series:
+        """Max absolute weight per ticker from ADDV, participation cap, and days to liquidate."""
         if aum <= 0.0:
             raise ValueError("aum must be positive")
         cfg = self.config
@@ -70,6 +76,7 @@ class LiquidityModel:
     def capacity_report(
         self, weights: Mapping[str, float], aum: float
     ) -> pd.DataFrame:
+        """DataFrame of abs_weight, max_weight, capacity_usage per ticker, sorted by usage descending."""
         tickers = list(weights.keys())
         max_weight = self.max_weight_limits(tickers, aum)
         actual_abs_weight = (

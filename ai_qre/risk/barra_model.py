@@ -10,6 +10,8 @@ from ai_qre.data.provider import MarketDataProvider
 
 @dataclass(frozen=True)
 class FactorRiskSnapshot:
+    """Factor model outputs: exposures, factor covariance, idiosyncratic variance, full asset cov."""
+
     exposures: pd.DataFrame
     factor_cov: pd.DataFrame
     idiosyncratic_var: pd.Series
@@ -38,6 +40,7 @@ class BarraLikeRiskModel:
         self.config = config or RiskConfig()
 
     def compute_factor_exposures(self, tickers: Sequence[str]) -> pd.DataFrame:
+        """Return DataFrame of factor exposures (market_beta, size, momentum, sector_*) per ticker."""
         tickers_list = list(tickers)
         returns = self.data.get_returns(
             tickers_list, lookback=self.config.factor_window
@@ -99,6 +102,7 @@ class BarraLikeRiskModel:
         return exposures.astype(float)
 
     def factor_covariance(self, tickers: Sequence[str]) -> pd.DataFrame:
+        """Return factor return covariance matrix from estimated factor returns."""
         tickers_list = list(tickers)
         exposures = self.compute_factor_exposures(tickers_list)
         returns = self.data.get_returns(
@@ -120,6 +124,7 @@ class BarraLikeRiskModel:
         return factor_return_frame.cov().astype(float)
 
     def snapshot(self, tickers: Sequence[str]) -> FactorRiskSnapshot:
+        """Return full factor risk snapshot: exposures, factor cov, idiosyncratic var, asset cov."""
         tickers_list = list(tickers)
         exposures = self.compute_factor_exposures(tickers_list)
         factor_cov = self.factor_covariance(tickers_list)

@@ -1,3 +1,5 @@
+"""Walk-forward backtest: rolling train/test, alpha_generator + pipeline -> equity, weights, turnover, cost."""
+
 from dataclasses import dataclass
 
 import pandas as pd
@@ -9,6 +11,8 @@ from ai_qre.types import AlphaGeneratorLike, ResearchPipelineLike, WeightVector
 
 @dataclass(frozen=True)
 class WalkForwardResult:
+    """Stitched equity curve, weights/turnover/cost per rebalance date."""
+
     equity_curve: pd.Series
     weights_by_rebalance: pd.DataFrame
     turnover_by_rebalance: pd.Series
@@ -16,6 +20,8 @@ class WalkForwardResult:
 
 
 class WalkForwardBacktester:
+    """Rolling train/test windows; at each step call alpha_generator(train_returns) and pipeline.build_portfolio."""
+
     config: WalkForwardConfig
 
     def __init__(self, config: WalkForwardConfig | None = None) -> None:
@@ -28,6 +34,7 @@ class WalkForwardBacktester:
         data_provider: MarketDataProvider,
         tickers: list[str],
     ) -> WalkForwardResult:
+        """Run walk-forward; optional MPC via build_portfolio_mpc when config.use_mpc is True."""
         prices = data_provider.get_prices(tickers)
         returns = prices.pct_change().dropna().reindex(columns=tickers)
         cfg = self.config

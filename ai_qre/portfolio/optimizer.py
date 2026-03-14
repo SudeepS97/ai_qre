@@ -1,3 +1,5 @@
+"""Single-period portfolio optimizer: multiple objective types and constraints."""
+
 from collections.abc import Mapping
 from typing import cast
 
@@ -24,6 +26,8 @@ from ai_qre.types import CovarianceProvider, WeightVector
 
 
 class PortfolioOptimizer:
+    """Solves a single-period QP: objective (mean_variance, gmv, cvar, tracking_error, robust) and exposure constraints."""
+
     def __init__(
         self,
         cov: CovarianceProvider,
@@ -40,6 +44,7 @@ class PortfolioOptimizer:
         max_weight_by_asset: pd.Series | Mapping[str, float] | None = None,
         trading_cost_lambda_diag: Mapping[str, float] | None = None,
     ) -> WeightVector:
+        """Return optimal weights; supports factor penalty, hard neutrality, capacity caps, trading cost in objective."""
         tickers = list(alphas.keys())
         if not tickers:
             return {}
@@ -50,6 +55,7 @@ class PortfolioOptimizer:
                 self.config,
                 tickers,
                 alphas,
+                PortfolioOptimizer,  # class used as (cov, config) -> instance
                 current=current,
             )
 
