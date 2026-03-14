@@ -12,6 +12,8 @@ from ai_qre.types import AlphaModelMap, TradeVector, WeightVector
 
 
 class ResearchPipeline:
+    """Main pipeline: data and alpha_models in; blend, optional BL, optimize with risk/capacity; weights, trades, cost out."""
+
     def __init__(self, data: MarketDataProvider) -> None:
         self.data = data
         self.blender = AlphaBlender()
@@ -33,6 +35,7 @@ class ResearchPipeline:
         alpha_age: int | float = 0,
         use_factor_penalty: bool = True,
     ) -> tuple[WeightVector, TradeVector, float]:
+        """Blend and decay alpha; optional Black-Litterman; solve single-period optimizer; return weights, trades, execution cost."""
         alpha = self.blender.blend(alpha_models)
         alpha = self.decay.apply(alpha, alpha_age)
         alpha = shrink(alpha)

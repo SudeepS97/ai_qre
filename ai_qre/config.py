@@ -1,8 +1,12 @@
+"""Configuration dataclasses for portfolio, risk, backtest, and research."""
+
 from dataclasses import dataclass
 
 
 @dataclass
 class PortfolioConfig:
+    """Portfolio optimizer and constraints: exposure, neutrality, objective type, BL, capacity."""
+
     max_position: float = 0.03
     gross_limit: float = 3.0
     net_target: float = 0.0
@@ -36,6 +40,8 @@ class PortfolioConfig:
 
 @dataclass
 class RiskConfig:
+    """Covariance and factor model: shrinkage, factor window, momentum lookback."""
+
     shrinkage: float = 0.1
     factor_window: int = 252
     momentum_lookback: int = 126
@@ -44,12 +50,16 @@ class RiskConfig:
 
 @dataclass
 class ExecutionConfig:
+    """Execution cost model: spread and impact coefficients."""
+
     spread_cost: float = 0.0005
     impact_coeff: float = 0.1
 
 
 @dataclass
 class WalkForwardConfig:
+    """Walk-forward backtest: train/test windows, step size, optional MPC."""
+
     train_window: int = 252
     test_window: int = 21
     step_size: int = 21
@@ -62,6 +72,8 @@ class WalkForwardConfig:
 
 @dataclass
 class StressTestConfig:
+    """Monte Carlo stress: number of paths, horizon, seed."""
+
     paths: int = 1000
     horizon: int = 50
     seed: int | None = 7
@@ -69,12 +81,16 @@ class StressTestConfig:
 
 @dataclass
 class DistributedConfig:
+    """Multiprocessing runner: workers, chunksize."""
+
     workers: int | None = None
     chunksize: int = 1
 
 
 @dataclass
 class CapacityConfig:
+    """Liquidity model: participation cap, days to liquidate, min weight cap."""
+
     adv_fraction: float = 0.05
     participation_cap: float = 0.05
     forecast_days_to_liquidate: int = 5
@@ -83,6 +99,8 @@ class CapacityConfig:
 
 @dataclass
 class ExperimentConfig:
+    """Experiment tracker: root dir, autosave flags."""
+
     root_dir: str = "runs"
     autosave_metrics: bool = True
     autosave_params: bool = True
@@ -91,6 +109,8 @@ class ExperimentConfig:
 
 @dataclass
 class VectorizedResearchConfig:
+    """Vectorized backtest: rebalance frequency, top_n/bottom_n, gross, neutralization."""
+
     rebalance_frequency: int = 21
     top_n: int | None = None
     bottom_n: int | None = None

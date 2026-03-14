@@ -1,3 +1,5 @@
+"""Objective builders for the optimizer: mean-variance, GMV, tracking error, CVaR, robust."""
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Optional
@@ -47,6 +49,8 @@ class RobustMeanVarianceInputs:
 
 
 class BaseObjective:
+    """Base for objective terms; build() returns a CVXPY expression to maximize."""
+
     def build(
         self,
         tickers: Sequence[str],
@@ -56,6 +60,8 @@ class BaseObjective:
 
 
 class MeanVarianceObjective(BaseObjective):
+    """Alpha - risk_aversion * variance - turnover_penalty * |w - current|."""
+
     def __init__(self, inputs: MeanVarianceInputs) -> None:
         self.inputs = inputs
 
@@ -83,6 +89,8 @@ class MeanVarianceObjective(BaseObjective):
 
 
 class GlobalMinimumVarianceObjective(BaseObjective):
+    """Minimize portfolio variance (GMV)."""
+
     def __init__(self, inputs: GlobalMinimumVarianceInputs) -> None:
         self.inputs = inputs
 
@@ -95,6 +103,8 @@ class GlobalMinimumVarianceObjective(BaseObjective):
 
 
 class TrackingErrorObjective(BaseObjective):
+    """Alpha on active weights - risk_aversion * tracking variance - turnover penalty."""
+
     def __init__(self, inputs: TrackingErrorInputs) -> None:
         self.inputs = inputs
 
@@ -159,6 +169,8 @@ class CvarObjective(BaseObjective):
 
 
 class RobustMeanVarianceObjective(BaseObjective):
+    """Mean-variance with box or ellipsoid uncertainty on alpha/covariance."""
+
     def __init__(self, inputs: RobustMeanVarianceInputs) -> None:
         self.inputs = inputs
 

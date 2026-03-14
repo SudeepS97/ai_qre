@@ -1,3 +1,5 @@
+"""Type aliases and protocols for the research pipeline and backtesting."""
+
 from collections.abc import Mapping, Sequence
 from datetime import datetime
 from typing import Protocol, TypeAlias
@@ -14,10 +16,14 @@ FactorExposureMap: TypeAlias = dict[pd.Timestamp, pd.DataFrame]
 
 
 class CovarianceProvider(Protocol):
+    """Protocol for computing asset covariance matrices from ticker lists."""
+
     def compute(self, tickers: Sequence[str]) -> np.ndarray: ...
 
 
 class MarketDataProviderLike(Protocol):
+    """Protocol for market data: prices, returns, volumes, sectors, market caps."""
+
     def get_prices(
         self,
         tickers: Sequence[Ticker],
@@ -43,6 +49,8 @@ class MarketDataProviderLike(Protocol):
 
 
 class ResearchPipelineLike(Protocol):
+    """Protocol for objects that build a portfolio from alpha models."""
+
     def build_portfolio(
         self,
         alpha_models: AlphaModelMap,
@@ -53,4 +61,6 @@ class ResearchPipelineLike(Protocol):
 
 
 class AlphaGeneratorLike(Protocol):
+    """Protocol for callables that produce alpha model maps from train returns."""
+
     def __call__(self, train_returns: pd.DataFrame) -> AlphaModelMap: ...

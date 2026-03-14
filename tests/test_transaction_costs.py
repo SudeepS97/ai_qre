@@ -3,6 +3,7 @@
 from collections.abc import Mapping, Sequence
 from typing import cast
 
+import cvxpy as cp
 import numpy as np
 
 from ai_qre.config import PortfolioConfig
@@ -22,8 +23,6 @@ class _FixedCov:
 
 
 def test_turnover_limit_constraint_added() -> None:
-    import cvxpy as cp
-
     config = PortfolioConfig(
         net_target=0.0,
         gross_limit=2.0,

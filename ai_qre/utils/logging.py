@@ -1,3 +1,5 @@
+"""Structured logging: configure_structlog, get_logger, init_structured_logging, bind/clear context."""
+
 import logging
 import os
 from typing import Any, Mapping, Protocol

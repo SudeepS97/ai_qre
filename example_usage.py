@@ -5,7 +5,8 @@ from datetime import datetime
 import numpy as np
 import pandas as pd
 
-from ai_qre import ResearchPipeline, ResearchExtensions
+from ai_qre.research_extensions import ResearchExtensions
+from ai_qre.research_pipeline import ResearchPipeline
 from ai_qre.backtest.vectorized import VectorizedBacktestResult
 from ai_qre.data.provider import MarketDataProvider
 from ai_qre.tracking.experiment import ExperimentRun

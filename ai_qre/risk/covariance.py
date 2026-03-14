@@ -1,3 +1,5 @@
+"""Covariance estimation for the portfolio optimizer."""
+
 from collections.abc import Sequence
 
 import numpy as np
@@ -6,6 +8,8 @@ from ai_qre.data.provider import MarketDataProvider
 
 
 class ShrinkageCovariance:
+    """Sample covariance with diagonal shrinkage for stability."""
+
     def __init__(
         self,
         data: MarketDataProvider,
@@ -17,6 +21,7 @@ class ShrinkageCovariance:
         self.shrinkage = float(shrinkage)
 
     def compute(self, tickers: Sequence[str]) -> np.ndarray:
+        """Return covariance matrix (square, same order as tickers) from historical returns."""
         tickers_list = list(tickers)
         if not tickers_list:
             return np.zeros((0, 0), dtype=float)

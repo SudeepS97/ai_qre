@@ -1,3 +1,5 @@
+"""Vectorized backtest: alpha panel -> rebalanced weights -> equity curve and turnover."""
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -9,6 +11,8 @@ from ai_qre.types import FactorExposureMap
 
 @dataclass(frozen=True)
 class VectorizedBacktestResult:
+    """Weights by rebalance date, daily portfolio returns, equity curve, turnover per rebalance."""
+
     weights: pd.DataFrame
     portfolio_returns: pd.Series
     equity_curve: pd.Series
@@ -16,6 +20,8 @@ class VectorizedBacktestResult:
 
 
 class VectorizedResearchHarness:
+    """Turns alpha time series into long/short weights (top_n/bottom_n or sign), optional factor neutralization, gross scaling."""
+
     config: VectorizedResearchConfig
 
     def __init__(self, config: VectorizedResearchConfig | None = None) -> None:
@@ -27,6 +33,7 @@ class VectorizedResearchHarness:
         returns_frame: pd.DataFrame,
         factor_exposure_by_date: FactorExposureMap | None = None,
     ) -> VectorizedBacktestResult:
+        """Rebalance every rebalance_frequency days; return weights, portfolio returns, equity curve, turnover."""
         alpha_sorted = alpha_frame.sort_index()
         returns_sorted = returns_frame.sort_index().reindex(
             columns=alpha_sorted.columns
