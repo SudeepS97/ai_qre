@@ -217,3 +217,4 @@ yarn-debug.log*
 yarn-error.log*
 .vercel
 runs/
+data/
