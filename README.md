@@ -24,19 +24,14 @@ The public API has two entry points:
 Both live in `ai_qre` (see `ai_qre/__init__.py`). The core flow is implemented in `ai_qre/research_pipeline.py`.
 
 ```mermaid
-flowchart LR
-    DataProvider[MarketDataProvider]
-    Alpha[AlphaModels]
-    Blend[BlendDecayShrink]
-    Risk[RiskAndCapacity]
-    Optimizer[PortfolioOptimizer]
-    Output[WeightsTradesCost]
-
-    DataProvider --> Alpha
-    Alpha --> Blend
-    Blend --> Risk
-    Risk --> Optimizer
-    Optimizer --> Output
+graph LR
+    A[MarketDataProvider]
+    B[Alpha Models]
+    C[Blend / Decay / Shrink]
+    D[Risk and Capacity]
+    E[Portfolio Optimizer]
+    F[Weights, Trades, Cost]
+    A --> B --> C --> D --> E --> F
 ```
 
 **Types and protocols** (`ai_qre/types.py`) let you plug in custom data and alpha:
